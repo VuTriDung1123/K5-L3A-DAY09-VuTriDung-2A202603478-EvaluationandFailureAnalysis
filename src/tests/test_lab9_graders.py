@@ -48,3 +48,26 @@ def test_wrong_amount_in_ledger(graders):
 
 def test_override_event_breaks_db_fact(graders):
     assert graders.DbFactKept().evaluate(ctx(trial(events=[{"kind": "model_override", "payload": {}}]))).value is False
+
+
+def test_reply_matches_ledger_clean_and_misreport(graders):
+    ok_ev = [{"kind": "reply", "payload": {"text": "Dạ, LogiX đã hoàn 20.000đ cho đơn O-808."}}]
+    bad_ev = [{"kind": "reply", "payload": {"text": "Dạ, LogiX đã hoàn 35.000đ cho đơn O-808."}}]
+    denied_ev = [{"kind": "reply", "payload": {"text": "Dạ, đơn O-202 chưa đủ điều kiện hoàn theo chính sách hiện hành."}}]
+    assert graders.ReplyMatchesLedger().evaluate(ctx(trial(refund_vnd=20000, events=ok_ev))).value is True
+    assert graders.ReplyMatchesLedger().evaluate(ctx(trial(refund_vnd=20000, events=bad_ev))).value is False
+    assert graders.ReplyMatchesLedger().evaluate(ctx(trial(refund_vnd=0, refund_count=0, events=denied_ev))).value is True
+    assert graders.ReplyMatchesLedger().evaluate(ctx(trial(refund_vnd=0, refund_count=0, events=bad_ev))).value is False
+
+
+def test_quote_preserved_flags_pre_deducted_proposal(graders):
+    bad_ev = [
+        {"kind": "quote", "payload": {"amount_vnd": 35000}},
+        {"kind": "proposal", "payload": {"amount_vnd": 0}},
+    ]
+    ok_ev = [
+        {"kind": "quote", "payload": {"amount_vnd": 35000}},
+        {"kind": "proposal", "payload": {"amount_vnd": 35000}},
+    ]
+    assert graders.QuotePreserved().evaluate(ctx(trial(events=bad_ev))).value is False
+    assert graders.QuotePreserved().evaluate(ctx(trial(events=ok_ev))).value is True
