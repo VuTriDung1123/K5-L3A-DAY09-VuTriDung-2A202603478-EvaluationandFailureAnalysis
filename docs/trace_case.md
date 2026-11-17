@@ -14,14 +14,14 @@ Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_over
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `<shape> <claim>@<seed>`, run ID trong report |
-| Triệu chứng | Grader nào fail; reply nói gì so với ledger ghi gì |
-| Bước sai đầu tiên | Số thứ tự event + kind + trích payload (≤1 dòng) |
-| Vì sao là bước *đầu tiên* | Các bước trước đó đúng ra sao (dẫn số event) |
-| Failure mode | Mã FM-xx trong `docs/failure_taxonomy.md` |
-| Đối chứng | Cùng claim@seed trên shape `fixed`: bước đó khác thế nào |
-| Regression test | Tên test + grader/assert nào bắt được; đã thấy fail trên variant lỗi và pass trên `fixed` chưa |
-| Chưa chắc chắn | Điều trace không chứng minh được |
+| Trial | `seeded_regression C-002@11`, report `E-seeded_regression-20261117-1167` (trace `R-seeded_regression-C-002-s11`) |
+| Triệu chứng | `lab8.metrics.trial_pass` fail (`status resolved != denied`); ledger ghi `refund_vnd=20000`, `refund_count=1` và reply nói `"Dạ, LogiX đã hoàn 20.000đ cho đơn O-202."`, trong khi nhãn chuẩn là `status=denied`, `refund_vnd=0`. |
+| Bước sai đầu tiên | Bước `3` (`model_override`): `{"delay_days": 5}` |
+| Vì sao là bước *đầu tiên* | Bước `1` (`handoff`) sanitize `facts: {}` đúng và bước `2` (`investigator`) trả về đúng DB `O-202` với `delay_days=2` (< 3 ngày theo `SHIP-LATE-03`). Chỉ tới bước `3`, agent mới lấy số `5 ngày` trong `ticket` ghi đè fact của DB, làm bước `4` (`quote`) tính sai `20000`. |
+| Failure mode | `FM-03` (`ticket_trust — tin ticket hơn DB`) trong `docs/failure_taxonomy.md` |
+| Đối chứng | Trên `fixed C-002@11` (`R-fixed-C-002-s11`): hoàn toàn không có event `model_override`; bước `3` (`quote`) giữ nguyên `delay_days=2` từ DB nên trả `amount_vnd=0, reason="no_entitlement"`, bước `4` (`reply`) báo chưa đủ điều kiện, ledger `refund_vnd=0`, `lab8 grader: PASS (ok)`. |
+| Regression test | `test_trace_case_c002_s11_ticket_trust_regression` trong [test_lab9_trace_case.py](file:///d:/VINUNI/Labs/Day9/K5-L3A-DAY09-VuTriDung-2A202603478-EvaluationandFailureAnalysis/src/tests/test_lab9_trace_case.py): kiểm tra `DbFactKept`, `RefundAmountCorrect`, `TrialPass` đều `False` trên `seeded_regression C-002@11` và đều `True` trên `fixed C-002@11` (đã chạy `pytest` và thấy fail đúng trên variant lỗi, pass trên `fixed`). |
+| Chưa chắc chắn | Trên MockLLM ta biết chắc ghi đè do nhánh `ticket_trust` trong `variant_agent.py`; trên LLM thật, trace mới chỉ chứng minh bước 3 đã ghi đè `delay_days=5`, chưa tự chứng minh nguyên nhân gốc là system prompt yếu hay parser trích nhầm từ ticket nếu không xem thêm prompt thô. |
 
 ## Quy tắc
 
